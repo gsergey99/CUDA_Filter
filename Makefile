@@ -5,3 +5,6 @@ all:
 run:
 
 	./SobelFilter img/madrid.jpg
+
+clean:
+	rm SobelFilter
