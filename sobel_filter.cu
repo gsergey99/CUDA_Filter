@@ -23,7 +23,7 @@
 #include <opencv2/core.hpp>
 #include "include/colours.h"
 
-#define N 30 // Number of threads
+#define N 1 // Number of threads
 #define tb 512  // Block size
 #define DIM_KERNEL 3 // Dimention of the kernel
 
@@ -35,11 +35,11 @@ __device__ const int kernel_y[DIM_KERNEL][DIM_KERNEL]={{-1,-2,-1},{0,0,0},{1,2,1
 
 void sobelFilterOpenCV(cv::Mat scr_image, cv::Mat dest_image){
   cv::Mat grad_x, grad_y, abs_grad_x, abs_grad_y;
-  // Gradient of X 
-  cv::Sobel(scr_image, grad_x, CV_16S, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT);
+ 
+  cv::Sobel(scr_image, grad_x, CV_16S, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT);// Gradient of X
   cv::convertScaleAbs(grad_x, abs_grad_x);
-  // Gradient of Y
-  cv::Sobel(scr_image, grad_y, CV_16S, 0, 1, 3, 1, 0, cv::BORDER_DEFAULT);
+  
+  cv::Sobel(scr_image, grad_y, CV_16S, 0, 1, 3, 1, 0, cv::BORDER_DEFAULT);// Gradient of Y
   cv::convertScaleAbs(grad_y, abs_grad_y);
   // Link all the gradients
   addWeighted( abs_grad_x, 0.5, abs_grad_y, 0.5, 0, dest_image );
@@ -67,7 +67,7 @@ __global__ void sobelKernelCUDA(unsigned char* src_image, unsigned char* dest_im
     if (result > 255) result = 255;
     if (result < 0) result = 0;
 
-    dest_image[x*height+y] = result;
+    dest_image[x*height+y] = (int)result;
 
 }
 
@@ -118,9 +118,9 @@ int main(int argc,char * argv[]){
 
     
     dim3 threadsPerBlock(N, N, 1);
-    dim3 numBlocks(ceil(rows/N), ceil(cols/N), 1);
+    dim3 numBlocks((int)ceil(rows/N), (int)ceil(cols/N), 1);
 
-    sobelKernelCUDA<<< numBlocks, threadsPerBlock>>>(d_image, h_image, rows, cols);
+    sobelKernelCUDA <<< numBlocks, threadsPerBlock >>> (d_image, h_image, rows, cols);
     testCuErr(cudaGetLastError());
 
     cudaMemcpy(src_image.data, h_image, size, cudaMemcpyDeviceToHost);
