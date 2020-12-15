@@ -23,7 +23,7 @@
 #include <opencv2/core.hpp>
 #include "include/colours.h"
 
-#define N 1 // Number of threads
+#define N 30.0 // Number of threads
 #define tb 512  // Block size
 #define DIM_KERNEL 3 // Dimention of the kernel
 
