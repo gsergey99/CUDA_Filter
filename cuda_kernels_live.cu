@@ -15,7 +15,7 @@
 #include <thread>
 #include <chrono>
 #include <string.h>
-#include <time.h>
+#include <ctime>
 #include <iostream>
 #include <math.h>
 #include <typeinfo>
@@ -26,7 +26,7 @@
 #include "include/colours.h"
 
 #define N 25.0 // Number of threads
-#define DIM_KERNEL 3 // Dimension of Sobel kernel
+#define DIM_KERNEL 3 // Dimension of kernel
 
 /*Global variables for the  sobel kernel's gradient*/
 __device__ const int kernel_sobel_x[DIM_KERNEL][DIM_KERNEL]={{-1,0,1},{-2,0,2},{-1,0,1}};
@@ -78,7 +78,6 @@ __global__ void sharpenKernelCUDA(unsigned char* src_image, unsigned char* dest_
 
 }
 
-
 cudaError_t testCuErr(cudaError_t result){
   if (result != cudaSuccess) {
     printf(FCYN("[CUDA MANAGER] CUDA Runtime Error: %s\n"), cudaGetErrorString(result));
@@ -89,10 +88,15 @@ cudaError_t testCuErr(cudaError_t result){
 
 int main(int argc,char * argv[]){
     
-    int rows, cols;
+    int rows, cols, tick;
     cv::Mat src_image, dst_image;
     cv::VideoCapture cap;
-    
+    std::time_t timeBegin = std::time(0);
+    std::time_t timeEnd;
+    long frame_Counter = 0;
+
+    tick = 0;
+
     if (argc!=2){
         std::cout << FRED("[MANAGER] The number of arguments are incorrect, please insert <image> <filter name: sobel, sharpen>") << std::endl;
         return 1;
@@ -143,8 +147,20 @@ int main(int argc,char * argv[]){
       cudaMemcpy(src_image.data, h_image, size, cudaMemcpyDeviceToHost);
       cudaFree(d_image); 
       cudaFree(h_image);
+
       
       cv::imshow("CUDA Filter LIVE",src_image);
+      frame_Counter++;
+
+      timeEnd = std::time(0) - timeBegin;
+
+      if (timeEnd - tick >= 1)
+      {
+          tick++;
+          std::cout << "Frames per second: " << frame_Counter << std::endl;
+          frame_Counter = 0;
+      }
+
 
       int k = cv::waitKey(10); // Wait for a keystroke in the windows
       if(k ==27) break;

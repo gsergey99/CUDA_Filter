@@ -15,7 +15,7 @@
 #include <thread>
 #include <chrono>
 #include <string.h>
-#include <time.h>
+#include <ctime>
 #include <iostream>
 #include <math.h>
 #include <typeinfo>
@@ -34,23 +34,36 @@ __device__ const int kernel_sobel_y[DIM_KERNEL][DIM_KERNEL]={{-1,-2,-1},{0,0,0},
 
 __device__ const int kernel_sharpen[DIM_KERNEL][DIM_KERNEL] = {{0,-1,0},{-1,5,-1},{0,-1,0}};
 
-void sobelFilterOpenCV(cv::Mat scr_image, cv::Mat dest_image){
-  cv::Mat grad_x, grad_y, abs_grad_x, abs_grad_y;
- 
-  cv::Sobel(scr_image, grad_x, CV_16S, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT);// Gradient of X
-  cv::convertScaleAbs(grad_x, abs_grad_x);
-  
-  cv::Sobel(scr_image, grad_y, CV_16S, 0, 1, 3, 1, 0, cv::BORDER_DEFAULT);// Gradient of Y
-  cv::convertScaleAbs(grad_y, abs_grad_y);
-  // Link all the gradients
-  cv::addWeighted( abs_grad_x, 0.5, abs_grad_y, 0.5, 0, dest_image );
+
+void sobelFilterCPU(cv::Mat src_image, cv::Mat dest_image, const int width, const int height){
+  for(int x = 1; x < src_image.rows-1; x++) {
+      for(int y = 1; y < src_image.cols-1; y++) {
+
+        float dy = (-1*src_image.data[(x-1)*height + (y-1)]) + (-2*src_image.data[x*height+(y-1)]) + (-1*src_image.data[(x+1)*height+(y-1)]) +
+            (src_image.data[(x-1)*height + (y+1)]) + (2*src_image.data[x*height+(y+1)]) + (src_image.data[(x+1)*height+(y+1)]);
+            
+        float dx = (src_image.data[(x-1)*height + (y-1)]) + (2*src_image.data[(x-1)*height+y]) + (src_image.data[(x-1)*height+(y+1)]) +
+        (-1*src_image.data[(x+1)*height + (y-1)]) + (-2*src_image.data[(x+1)*height+y]) + (-1*src_image.data[(x+1)*height+(y+1)]);
+          
+          dest_image.at<uchar>(x,y) = sqrt( (dx*dx) + (dy*dy) ) > 255 ? 255 : sqrt( (dx*dx) + (dy*dy) );
+      }
+  }
 }
 
-void sharpenKernelOpenCV(cv::Mat scr_image, cv::Mat dest_image){
-  cv::GaussianBlur(scr_image, dest_image, cv::Size(0, 0), 3);
-  cv::addWeighted(scr_image, 1.5, dest_image, -0.5, 0, dest_image);
+void sharpenFilterCPU(cv::Mat src_image, cv::Mat dest_image, const int width, const int height){
+  float result;
+  for(int x = 1; x < src_image.rows-1; x++) {
+      for(int y = 1; y < src_image.cols-1; y++) {
 
+        result = (-1 * src_image.data[(x-1)*height + y]) + (-1 * src_image.data[x*height+(y-1)]) + (5 * src_image.data[x*height+y]) 
+        + (-1 * src_image.data[x*height+(y+1)]) + (-1 *src_image.data[(x+1)*height + y]);
+        
+          
+          dest_image.at<uchar>(x,y) = (char)result;
+      }
+  }
 }
+
 
 __global__ void sobelKernelCUDA(unsigned char* src_image, unsigned char* dest_image, int width, int height){
      
@@ -73,7 +86,7 @@ __global__ void sobelKernelCUDA(unsigned char* src_image, unsigned char* dest_im
     if (result > 255) result = 255;
     if (result < 0) result = 0;
 
-    dest_image[x*height+y] = (int)result;
+    dest_image[x*height+y] = result;
 
 }
 
@@ -92,8 +105,7 @@ __global__ void sharpenKernelCUDA(unsigned char* src_image, unsigned char* dest_
   if (result > 255) result = 255;
   if (result < 0) result = 0;
 
-  dest_image[x*height+y] = (int)result;
-
+  dest_image[x*height+y] = result;
 }
 
 
@@ -108,8 +120,8 @@ cudaError_t testCuErr(cudaError_t result){
 int main(int argc,char * argv[]){
     
     int rows, cols;
-    cv::Mat src_image, dst_image;
-    
+    cv::Mat src_image, dest_image_cpu;
+            
     if (argc!=3){
         std::cout << FRED("[MANAGER] The number of arguments are incorrect, please insert <image> <filter name: sobel, sharpen>") << std::endl;
         return 1;
@@ -128,14 +140,19 @@ int main(int argc,char * argv[]){
     }
 
     cv::cvtColor(src_image, src_image, cv::COLOR_RGB2GRAY);
-    dst_image = cv::Mat::zeros(src_image.size(), src_image.type());
+    dest_image_cpu = cv::Mat::zeros(src_image.size(),src_image.type());
     
     cols = src_image.cols;
     rows = src_image.rows;
 
     std::cout << FCYN("[MANAGER] Using Image ") << argv[1] << FCYN(" | ROWS = ") <<  rows << FCYN(" COLS = ") << cols << std::endl;
-    sobelFilterOpenCV(src_image, dst_image);
+    
+    auto start_time = std::chrono::system_clock::now();
+    if (strcmp(argv[2], "sobel") == 0)   sobelFilterCPU(src_image, dest_image_cpu, rows, cols);
+    if (strcmp(argv[2], "sharpen") == 0)   sharpenFilterCPU(src_image, dest_image_cpu, rows, cols);
 
+    std::chrono::duration<double> time_cpu = std::chrono::system_clock::now() - start_time;
+    
     /*CUDA PART*/
     
     unsigned char *d_image, *h_image;
@@ -150,21 +167,24 @@ int main(int argc,char * argv[]){
     dim3 threadsPerBlock(N, N, 1);
     dim3 numBlocks((int)ceil(rows/N), (int)ceil(cols/N), 1);
 
+    start_time = std::chrono::system_clock::now();
     if (strcmp(argv[2], "sobel") == 0)  sobelKernelCUDA <<<numBlocks, threadsPerBlock>>> (d_image, h_image, rows, cols);
     if (strcmp(argv[2], "sharpen") == 0) sharpenKernelCUDA <<<numBlocks, threadsPerBlock>>> (d_image, h_image, rows, cols);
 
-
       testCuErr(cudaGetLastError());
+    std::chrono::duration<double> time_gpu = std::chrono::system_clock::now() - start_time;
 
     cudaMemcpy(src_image.data, h_image, size, cudaMemcpyDeviceToHost);
     cudaFree(d_image); 
     cudaFree(h_image);
     
-    cv::imshow("OPENCV Filter", dst_image);
+    cv::imshow("CPU Filter", dest_image_cpu);
     cv::imshow("CUDA Filter",src_image);
+
+    std::cout << FYEL("[MANAGER] Time CPU ") << time_cpu.count() * 1000 << FYEL(" milliseconds ") << std::endl;
+    std::cout << FYEL("[MANAGER] Time GPU ") << time_gpu.count() * 1000 << FYEL(" milliseconds ") << std::endl;
 
     int k = cv::waitKey(0); // Wait for a keystroke in the windows
 
-  
   return 0;
   }

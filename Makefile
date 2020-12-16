@@ -23,6 +23,9 @@ live-sharpen:
 error:
 	./cuda_kernel img/madrid.jpg ""
 
+video:
+	./cuda_kernels video/chicote "sobel"
+
 clean:
 
 	rm cuda_kernels
