@@ -23,7 +23,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/stitching.hpp>
 #include <opencv2/core.hpp>
-#include "include/colours.h"
+#include "../include/colours.h"
 
 #define N 25.0 // Number of threads
 #define DIM_KERNEL 3 // Dimension of kernel
