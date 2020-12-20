@@ -5,19 +5,19 @@ all:
 
 gpu-sobel:
 
-	./cuda_kernels 0 "sobel" img/madrid.jpg
+	./cuda_kernels 0 "sobel" img/gran_canaria.jpg
 
 gpu-sharpen:
 
-	./cuda_kernels 0 "sharpen" img/madrid.jpg
+	./cuda_kernels 0 "sharpen" img/b_w.jpg
 
-live-sobel:
+video-sobel:
 
-	./cpu_kernel 1 "sobel"
+	./cuda_kernels 1 "sobel" img/video.mp4
 
-live-sharpen:
+video-sharpen:
 
-	./cpu_kernel 1 "sharpen"
+	./cuda_kernels 1 "sharpen" img/video.mp4
 
 error:
 	./cuda_kernels img/madrid.jpg ""

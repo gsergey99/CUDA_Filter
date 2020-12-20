@@ -19,9 +19,13 @@
 #include <typeinfo>
 
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/stitching.hpp>
 #include <opencv2/core.hpp>
+#include "opencv2/videoio.hpp"
+#include <opencv2/video.hpp>
 
 #include <string.h>
 #include <math.h>
@@ -91,7 +95,7 @@ cudaError_t testCuErr(cudaError_t result){
 }
 
 void pictureFilter (char* filter, char* image);
-void liveFilter(char *filter);
+void videoFilter(char *filter, char* video);
 
 int main(int argc,char * argv[]){
                 
@@ -111,7 +115,7 @@ int main(int argc,char * argv[]){
     
     } else if (strcmp(argv[1], "1") == 0){
 
-      liveFilter(argv[2]);
+      videoFilter(argv[2],argv[3]);
 
     }
     else{
@@ -171,39 +175,42 @@ void pictureFilter (char* filter, char* image){
     cudaFree(h_image);
 
     memmory_used = src_image.cols * src_image.cols * sizeof(unsigned char);
+
+    cv::resize(src_image, src_image, cv::Size(), 0.75, 0.75);
     
     cv::imshow("CUDA Filter",src_image);
 
-    std::cout << FYEL("[MANAGER] Time GPU ") << time_gpu.count() * 1000 << FYEL(" milliseconds ") << std::endl;
+    std::cout << FYEL("[MANAGER] Time GPU ") << time_gpu.count() * 1000000 << FYEL(" microseconds ") << std::endl;
     std::cout << FYEL("[MANAGER] Memory occupied by the picture is ") << memmory_used << FYEL(" Bytes") << std::endl;
 
     int k = cv::waitKey(0);
 
 }
 
-void liveFilter(char * filter){
+void videoFilter(char * filter, char* video){
 
     int rows, cols, tick;
     cv::Mat src_image, dst_image;
-    cv::VideoCapture cap;
+    cv::VideoCapture cap (video);
+
     std::time_t timeBegin = std::time(0);
     std::time_t timeEnd;
+
     long frame_Counter = 0;
 
     tick = 0;
 
-    if(!cap.open(0)){
+    if(!cap.isOpened()){
       std::cout << FRED("[MANAGER] There is a problem catching the webcam")<< src_image << std::endl;
       return exit(EXIT_FAILURE);
     }
 
     for(;;){
-      
-      cap.read(src_image);
+
+      cap >> src_image;
 
       if (src_image.empty()){
-          std::cout << FRED("[MANAGER] There is a problem with the webcam")<< src_image << std::endl;
-          return exit(EXIT_FAILURE);
+        break;
       }
 
       cv::cvtColor(src_image, src_image, cv::COLOR_RGB2GRAY);
@@ -222,7 +229,7 @@ void liveFilter(char * filter){
       cudaMemset(h_image, 0, size);
       
       dim3 threadsPerBlock(N, N, 1);
-      dim3 numBlocks((int)ceil(rows/N), (int)ceil(cols/N), 1);
+      dim3 numBlocks((int)ceil(rows/N), (int)ceil(cols/N),1);
 
       if (strcmp(filter, "sobel") == 0)  sobelKernelCUDA <<<numBlocks, threadsPerBlock>>> (d_image, h_image, rows, cols);
       if (strcmp(filter, "sharpen") == 0) sharpenKernelCUDA <<<numBlocks, threadsPerBlock>>> (d_image, h_image, rows, cols);
@@ -232,8 +239,8 @@ void liveFilter(char * filter){
       cudaMemcpy(src_image.data, h_image, size, cudaMemcpyDeviceToHost);
       cudaFree(d_image); 
       cudaFree(h_image);
-
-      cv::imshow("CUDA Filter LIVE",src_image);
+      
+      cv::imshow("CUDA Filter Vídeo",src_image);
       frame_Counter++;
 
       timeEnd = std::time(0) - timeBegin;
@@ -245,7 +252,7 @@ void liveFilter(char * filter){
           frame_Counter = 0;
       }
 
-      int k = cv::waitKey(10);
-      if(k ==27) break;
+
+      int k = cv::waitKey(33);
     }
 }
