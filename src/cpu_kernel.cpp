@@ -80,7 +80,7 @@ int main(int argc, char *argv[]){
     src_image = cv::imread(argv[1]);
     
     if (src_image.empty()){
-        std::cout << FRED("[MANAGER] There is a problem reading the image: ")<< src_image << std::endl;
+        std::cout << FRED("[CPU MANAGER] There is a problem reading the image: ")<< src_image << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]){
     cols = src_image.cols;
     rows = src_image.rows;
 
-    std::cout << FCYN("[MANAGER] Using Image ") << argv[1] << FCYN(" | ROWS = ") <<  rows << FCYN(" COLS = ") << cols << std::endl;
+    std::cout << FCYN("[CPU MANAGER] Using Image ") << argv[1] << FCYN(" | ROWS = ") <<  rows << FCYN(" COLS = ") << cols << std::endl;
     
     auto start_time = std::chrono::system_clock::now();
     if (strcmp(argv[2], "sobel") == 0)   sobelFilterCPU(src_image, dest_image_cpu, rows, cols);
@@ -98,11 +98,13 @@ int main(int argc, char *argv[]){
 
     std::chrono::duration<double> time_cpu = std::chrono::system_clock::now() - start_time;
     memmory_used = src_image.cols * src_image.cols * sizeof(unsigned char);
+    cv::resize(dest_image_cpu, dest_image_cpu, cv::Size(1360,700), 0.75, 0.75);
 
-    cv::imshow("CPU Filter",dest_image_cpu);
 
-    std::cout << FYEL("[MANAGER] Time CPU ") << time_cpu.count() * 1000000 << FYEL(" microseconds ") << std::endl;
-    std::cout << FYEL("[MANAGER] Memory occupied by the picture is ") << memmory_used << FYEL(" Bytes") << std::endl;
+    cv::imshow("CPU Filter Image",dest_image_cpu);
+
+    std::cout << FYEL("[CPU MANAGER] Time CPU ") << time_cpu.count() * 1000000 << FYEL(" microseconds ") << std::endl;
+    std::cout << FYEL("[CPU MANAGER] Memory occupied by the picture is ") << memmory_used << FYEL(" Bytes") << std::endl;
 
     int k = cv::waitKey(0);
 

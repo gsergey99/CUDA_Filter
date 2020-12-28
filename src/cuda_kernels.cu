@@ -102,12 +102,12 @@ void frameFilter(char *filter, char* video);
 int main(int argc,char * argv[]){
                 
     if (argc > 4 && argc < 3){
-        std::cout << FRED("[MANAGER] The number of arguments are incorrect, please insert <0:picture, 1 video, 2:live> <filter name: sobel, sharpen> <image or not image>  ") << std::endl;
+        std::cout << FRED("[CUDA MANAGER] The number of arguments are incorrect, please insert <0:picture, 1 video, 2:live> <filter name: sobel, sharpen> <image or not image>  ") << std::endl;
         return 1;
     }
 
     if (strcmp(argv[2], "") == 0){
-      std::cout << FRED("[MANAGER] The argument <filter name: sobel, sharpen> is not indicated") << std::endl;
+      std::cout << FRED("[CUDA MANAGER] The argument <filter name: sobel, sharpen> is not indicated") << std::endl;
       return 1;
     }
     
@@ -125,7 +125,7 @@ int main(int argc,char * argv[]){
     }
     else{
 
-      std::cout << FRED("[MANAGER] The argument <0:picture, 1 video, 2:live> is not indicated") << std::endl;
+      std::cout << FRED("[CUDA MANAGER] The argument <0:picture, 1 video, 2:live> is not indicated") << std::endl;
       return 1;
     }
     
@@ -142,7 +142,7 @@ void pictureFilter (char* filter, char* image){
     src_image = cv::imread(image);
       
     if (src_image.empty()){
-        std::cout << FRED("[MANAGER] There is a problem reading the image: ")<< src_image << std::endl;
+        std::cout << FRED("[CUDA MANAGER] There is a problem reading the image: ")<< src_image << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -151,7 +151,7 @@ void pictureFilter (char* filter, char* image){
     cols = src_image.cols;
     rows = src_image.rows;
 
-    std::cout << FCYN("[MANAGER] Using Image ") << image << FCYN(" | ROWS = ") <<  rows << FCYN(" COLS = ") << cols << std::endl;
+    std::cout << FCYN("[CUDA MANAGER] Using Image ") << image << FCYN(" | ROWS = ") <<  rows << FCYN(" COLS = ") << cols << std::endl;
     
     /*CUDA PART*/
     
@@ -184,10 +184,10 @@ void pictureFilter (char* filter, char* image){
 
     cv::resize(src_image, src_image, cv::Size(1360,700), 0.75, 0.75);
     
-    cv::imshow("CUDA Filter",src_image);
+    cv::imshow("CUDA Filter Image",src_image);
 
-    std::cout << FYEL("[MANAGER] Time GPU ") << time_gpu.count() * 1000000 << FYEL(" microseconds ") << std::endl;
-    std::cout << FYEL("[MANAGER] Memory occupied by the picture is ") << memmory_used << FYEL(" Bytes") << std::endl;
+    std::cout << FYEL("[CUDA MANAGER] Time GPU ") << time_gpu.count() * 1000000 << FYEL(" microseconds ") << std::endl;
+    std::cout << FYEL("[CUDA MANAGER] Memory occupied by the picture is ") << memmory_used << FYEL(" Bytes") << std::endl;
 
     int k = cv::waitKey(0);
 
@@ -212,7 +212,7 @@ void frameFilter(char * filter, char* video){
     }
 
     if(!cap.isOpened()){
-      std::cout << FRED("[MANAGER] There is a problem catching the frame")<< src_image << std::endl;
+      std::cout << FRED("[CUDA MANAGER] There is a problem catching the frame")<< src_image << std::endl;
       return exit(EXIT_FAILURE);
     }
 
@@ -252,7 +252,7 @@ void frameFilter(char * filter, char* video){
       cudaFree(h_image);
 
       cv::resize(src_image, src_image, cv::Size(1360,700), 0.75, 0.75);
-      cv::imshow("CUDA Filter Vídeo",src_image);
+      cv::imshow("CUDA Filter Frame",src_image);
       frame_Counter++;
 
       timeEnd = std::time(0) - timeBegin;
@@ -260,7 +260,7 @@ void frameFilter(char * filter, char* video){
       if (timeEnd - tick >= 1)
       {
           tick++;
-          std::cout << "Frames per second: " << frame_Counter << std::endl;
+          std::cout << FMAG("[CUDA MANAGER] Frames per second: ") << frame_Counter << std::endl;
           frame_Counter = 0;
       }
       int k = cv::waitKey(33);

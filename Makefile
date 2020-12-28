@@ -5,7 +5,8 @@ all:
 
 gpu-sobel:
 
-	./cuda_kernels 0 "sobel" img/tesla.jpg
+	./cuda_kernels 0 "sobel" img/tesla.jpg & ./cpu_kernel img/tesla.jpg "sobel"
+	
 
 gpu-sharpen:
 
