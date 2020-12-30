@@ -37,6 +37,9 @@
 #define MAX_VALUE_PIXEL 255 //Maximum value of a pixel
 #define MIN_VALUE_PIXEL 0 // Minimum value of a pixel
 
+
+enum Options{IMAGE, FRAME}; //Option's enumeration
+
 /*Global variables for the  sobel kernel's gradient*/
 __device__ const int kernel_sobel_x[DIM_KERNEL][DIM_KERNEL]={{-1,0,1},{-2,0,2},{-1,0,1}};
 __device__ const int kernel_sobel_y[DIM_KERNEL][DIM_KERNEL]={{-1,-2,-1},{0,0,0},{1,2,1}};
@@ -46,19 +49,21 @@ __device__ const int kernel_sharpen[DIM_KERNEL][DIM_KERNEL] = {{0,-1,0},{-1,5,-1
 
 __global__ void sobelKernelCUDA(unsigned char* src_image, unsigned char* dest_image, int height, int width){
      
-    float dx,dy,result;
+    float dx = 0;
+    float dy = 0;
+    float result;
 
     int x = threadIdx.x + blockIdx.x * blockDim.x;
     int y = threadIdx.y + blockIdx.y * blockDim.y;
-    
-    dx = (kernel_sobel_x[0][0] * src_image[(x-1)*width + (y-1)]) + (kernel_sobel_x[0][1] * src_image[(x-1)*width + y]) + (kernel_sobel_x[0][2] * src_image[(x-1)*width+(y+1)]) +
-    (kernel_sobel_x[1][0] * src_image[x*width+(y-1)]) + (kernel_sobel_x[1][1] * src_image[x*width+y]) +(kernel_sobel_x[1][2] * src_image[x*width+(y+1)]) + 
-    (kernel_sobel_x[2][0] * src_image[(x+1)*width +(y-1)]) + (kernel_sobel_x[2][1] *src_image[(x+1)*width + y]) + (kernel_sobel_x[2][2] * src_image[(x+1)*width + (y+1)]);
-    
-    dy = (kernel_sobel_y[0][0] * src_image[(x-1)*width + (y-1)]) + (kernel_sobel_y[0][1] * src_image[(x-1)*width + y]) + (kernel_sobel_y[0][2] * src_image[(x-1)*width+(y+1)]) +
-    (kernel_sobel_y[1][0] * src_image[x*width+(y-1)]) + (kernel_sobel_y[1][1] * src_image[x*width+y]) +(kernel_sobel_y[1][2] * src_image[x*width+(y+1)]) + 
-    (kernel_sobel_y[2][0] * src_image[(x+1)*width +(y-1)]) + (kernel_sobel_y[2][1] *src_image[(x+1)*width + y]) + (kernel_sobel_y[2][2] * src_image[(x+1)*width + (y+1)]);
-    
+
+
+    for (int i = -1;i < DIM_KERNEL -1; i++){
+      for(int j = -1;j < DIM_KERNEL - 1;j++ ){
+          dx += (kernel_sobel_x[1+i][1+j] * src_image[(x+i)*width + (y+j)]);
+          dy += (kernel_sobel_y[1+i][1+j] * src_image[(x+i)*width + (y+j)]);
+      }
+    }
+   
     result = sqrt((pow(dx,2))+ (pow(dy,2)));
 
     /*Noise suppression*/
@@ -71,14 +76,16 @@ __global__ void sobelKernelCUDA(unsigned char* src_image, unsigned char* dest_im
 
 __global__ void sharpenKernelCUDA(unsigned char* src_image, unsigned char* dest_image, int height, int width){
    
-    float result;
+    float result = 0;
 
     int x = threadIdx.x + blockIdx.x * blockDim.x;
     int y = threadIdx.y + blockIdx.y * blockDim.y;
-    
-    result = (kernel_sharpen[0][0] * src_image[(x-1)*width + (y-1)]) + (kernel_sharpen[0][1] * src_image[(x-1)*width + y]) + (kernel_sharpen[0][2] * src_image[(x-1)*width+(y+1)]) +
-    (kernel_sharpen[1][0] * src_image[x*width+(y-1)]) + (kernel_sharpen[1][1] * src_image[x*width+y]) +(kernel_sharpen[1][2] * src_image[x*width+(y+1)]) + 
-    (kernel_sharpen[2][0] * src_image[(x+1)*width +(y-1)]) + (kernel_sharpen[2][1] *src_image[(x+1)*width + y]) + (kernel_sharpen[2][2] * src_image[(x+1)*width + (y+1)]);
+
+    for (int i = -1;i < DIM_KERNEL -1; i++){
+      for(int j = -1;j < DIM_KERNEL - 1;j++ ){
+          result += (kernel_sharpen[1+i][1+j] * src_image[(x+i)*width + (y+j)]);
+      }
+    }
     
     /*Noise suppression*/
     if (result > MAX_VALUE_PIXEL) result = MAX_VALUE_PIXEL;
@@ -96,8 +103,9 @@ cudaError_t testCuErr(cudaError_t result){
   return result;
 }
 
-void pictureFilter (char* filter, char* image);
-void frameFilter(char *filter, char* video);
+void pictureFilter (char *filter, std::string image);
+void frameFilter(char *filter, std::string video);
+void cudaInit(char *filter, cv::Mat src_image, Options option);
 
 int main(int argc,char * argv[]){
                 
@@ -111,17 +119,21 @@ int main(int argc,char * argv[]){
       return 1;
     }
     
+    std::string src_image;
+
     if (strcmp(argv[1], "0") == 0){ 
 
-      pictureFilter(argv[2], argv[3]);
+      src_image = argv[3];
+      pictureFilter(argv[2], src_image);
     
     } else if (strcmp(argv[1], "1") == 0){
 
-      frameFilter(argv[2],argv[3]);
+      src_image = argv[3];
+      frameFilter(argv[2],src_image);
 
     } else if (strcmp(argv[1], "2") == 0){
-
-      frameFilter(argv[2],"");
+      src_image = "";
+      frameFilter(argv[2],src_image);
     }
     else{
 
@@ -133,11 +145,11 @@ int main(int argc,char * argv[]){
 }
 
 
-void pictureFilter (char* filter, char* image){
+void pictureFilter (char* filter, std::string image){
 
     int rows, cols;
-    long memmory_used;
     cv::Mat src_image;
+    Options option = IMAGE;
 
     src_image = cv::imread(image);
       
@@ -153,60 +165,32 @@ void pictureFilter (char* filter, char* image){
 
     std::cout << FCYN("[CUDA MANAGER] Using Image ") << image << FCYN(" | ROWS = ") <<  rows << FCYN(" COLS = ") << cols << std::endl;
     
-    /*CUDA PART*/
-    
-    unsigned char *d_image, *h_image;
-    int size = rows * cols;
-    
-    testCuErr(cudaMalloc((void**)&d_image, size));
-    testCuErr(cudaMalloc((void**)&h_image, size));
-    
-
-    testCuErr(cudaMemcpy(d_image,src_image.data,size, cudaMemcpyHostToDevice));
-    
-    cudaMemset(h_image, 0, size);
-    
-    dim3 threadsPerBlock(N, N,1);
-    dim3 numBlocks((int)ceil(rows/N), (int)ceil(cols/N),1);
-
-    auto start_time = std::chrono::system_clock::now();
-    if (strcmp(filter, "sobel") == 0)  sobelKernelCUDA <<<numBlocks, threadsPerBlock>>> (d_image, h_image, rows, cols);
-    if (strcmp(filter, "sharpen") == 0) sharpenKernelCUDA <<<numBlocks, threadsPerBlock>>> (d_image, h_image, rows, cols);
-
-    testCuErr(cudaGetLastError());
-    std::chrono::duration<double> time_gpu = std::chrono::system_clock::now() - start_time;
-
-    cudaMemcpy(src_image.data, h_image, size, cudaMemcpyDeviceToHost);
-    cudaFree(d_image); 
-    cudaFree(h_image);
-
-    memmory_used = src_image.cols * src_image.cols * sizeof(unsigned char);
+    cudaInit(filter,src_image, option); //CUDA execution
 
     cv::resize(src_image, src_image, cv::Size(1360,700), 0.75, 0.75);
     
     cv::imshow("CUDA Filter Image",src_image);
 
-    std::cout << FYEL("[CUDA MANAGER] Time GPU ") << time_gpu.count() * 1000000 << FYEL(" microseconds ") << std::endl;
-    std::cout << FYEL("[CUDA MANAGER] Memory occupied by the picture is ") << memmory_used << FYEL(" Bytes") << std::endl;
-
     int k = cv::waitKey(0);
 
 }
 
-void frameFilter(char * filter, char* video){
+void frameFilter(char* filter, std::string video){
 
-    int rows, cols, tick;
-    cv::Mat src_image, dst_image;
+    int tick;
+    cv::Mat src_image;
     cv::VideoCapture cap;
     std::time_t timeBegin = std::time(0);
     std::time_t timeEnd;
+    Options option = FRAME;
 
     long frame_Counter = 0;
 
     tick = 0;
 
-    if (strcmp(video, "") == 0){
+    if (video == ""){
       cap.open(0);
+      
     } else{
       cap.open(video);
     }
@@ -225,36 +209,13 @@ void frameFilter(char * filter, char* video){
       }
 
       cv::cvtColor(src_image, src_image, cv::COLOR_RGB2GRAY);
-      dst_image = cv::Mat::zeros(src_image.size(), src_image.type());
-      
-      cols = src_image.cols;
-      rows = src_image.rows;
- 
-      unsigned char *d_image, *h_image;
-      int size = rows * cols;
-      
-      testCuErr(cudaMalloc((void**)&d_image, size));
-      testCuErr(cudaMalloc((void**)&h_image, size));
 
-      testCuErr(cudaMemcpy(d_image,src_image.data,size, cudaMemcpyHostToDevice));
-      cudaMemset(h_image, 0, size);
-      
-      dim3 threadsPerBlock(N, N,1);
-      dim3 numBlocks((int)ceil(rows/N), (int)ceil(cols/N),1);
-
-      if (strcmp(filter, "sobel") == 0)  sobelKernelCUDA <<<numBlocks, threadsPerBlock>>> (d_image, h_image, rows, cols);
-      if (strcmp(filter, "sharpen") == 0) sharpenKernelCUDA <<<numBlocks, threadsPerBlock>>> (d_image, h_image, rows, cols);
-
-      testCuErr(cudaGetLastError());
-
-      cudaMemcpy(src_image.data, h_image, size, cudaMemcpyDeviceToHost);
-      cudaFree(d_image); 
-      cudaFree(h_image);
+      cudaInit(filter,src_image,option); //CUDA execution
 
       cv::resize(src_image, src_image, cv::Size(1360,700), 0.75, 0.75);
       cv::imshow("CUDA Filter Frame",src_image);
-      frame_Counter++;
 
+      frame_Counter++;
       timeEnd = std::time(0) - timeBegin;
 
       if (timeEnd - tick >= 1)
@@ -264,6 +225,47 @@ void frameFilter(char * filter, char* video){
           frame_Counter = 0;
       }
       int k = cv::waitKey(33);
+            
     }
 }
 
+void cudaInit(char *filter, cv::Mat src_image, Options option){
+
+    int rows, cols, size;
+    long memmory_used;
+    unsigned char *d_image, *h_image;
+    std::chrono::duration<double> time_gpu;
+    auto start_time = std::chrono::system_clock::now();
+    
+    cols = src_image.cols;
+    rows = src_image.rows;
+    size = rows * cols;
+    
+    testCuErr(cudaMalloc((void**)&d_image, size));
+    testCuErr(cudaMalloc((void**)&h_image, size));
+
+    testCuErr(cudaMemcpy(d_image,src_image.data,size, cudaMemcpyHostToDevice));
+    
+    cudaMemset(h_image, 0, size);
+    
+    dim3 threadsPerBlock(N, N,1);
+    dim3 numBlocks((int)ceil(rows/N), (int)ceil(cols/N),1);
+    
+    if (option == IMAGE) start_time = std::chrono::system_clock::now();
+    if (strcmp(filter, "sobel") == 0)  sobelKernelCUDA <<<numBlocks, threadsPerBlock>>> (d_image, h_image, rows, cols);
+    if (strcmp(filter, "sharpen") == 0) sharpenKernelCUDA <<<numBlocks, threadsPerBlock>>> (d_image, h_image, rows, cols);
+    
+    testCuErr(cudaGetLastError());
+    if (option == IMAGE) time_gpu = std::chrono::system_clock::now() - start_time;
+
+    cudaMemcpy(src_image.data, h_image, size, cudaMemcpyDeviceToHost);
+    cudaFree(d_image); 
+    cudaFree(h_image);
+
+    memmory_used = src_image.cols * src_image.cols * sizeof(unsigned char);
+
+    if (option == IMAGE) { 
+      std::cout << FYEL("[CUDA MANAGER] Time GPU ") << time_gpu.count() * 1000000 << FYEL(" microseconds ") << std::endl;
+      std::cout << FYEL("[CUDA MANAGER] Memory occupied by the picture is ") << memmory_used << FYEL(" Bytes") << std::endl;
+    }
+}
