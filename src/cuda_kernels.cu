@@ -41,11 +41,11 @@
 enum Options{IMAGE, FRAME}; //Option's enumeration
 
 /*Global variables for the  sobel kernel's gradient*/
-__device__ const int kernel_sobel_x[DIM_KERNEL][DIM_KERNEL]={{-1,0,1},{-2,0,2},{-1,0,1}};
-__device__ const int kernel_sobel_y[DIM_KERNEL][DIM_KERNEL]={{-1,-2,-1},{0,0,0},{1,2,1}};
+__constant__ int kernel_sobel_x[DIM_KERNEL][DIM_KERNEL]={{-1,0,1},{-2,0,2},{-1,0,1}};
+__constant__ int kernel_sobel_y[DIM_KERNEL][DIM_KERNEL]={{-1,-2,-1},{0,0,0},{1,2,1}};
 
 /*Global variable for the sharpen kernel*/
-__device__ const int kernel_sharpen[DIM_KERNEL][DIM_KERNEL] = {{0,-1,0},{-1,5,-1},{0,-1,0}};
+__constant__ int kernel_sharpen[DIM_KERNEL][DIM_KERNEL] = {{0,-1,0},{-1,5,-1},{0,-1,0}};
 
 __global__ void sobelKernelCUDA(unsigned char* src_image, unsigned char* dest_image, int height, int width){
      
@@ -111,34 +111,43 @@ int main(int argc,char * argv[]){
                 
     if (argc > 4 && argc < 3){
         std::cout << FRED("[CUDA MANAGER] The number of arguments are incorrect, please insert <0:picture, 1 video, 2:live> <filter name: sobel, sharpen> <image or not image>  ") << std::endl;
-        return 1;
+        return EXIT_FAILURE;
     }
 
     if (strcmp(argv[2], "") == 0){
       std::cout << FRED("[CUDA MANAGER] The argument <filter name: sobel, sharpen> is not indicated") << std::endl;
-      return 1;
+      return EXIT_FAILURE;
     }
     
     std::string src_image;
 
-    if (strcmp(argv[1], "0") == 0){ 
+    try{
 
-      src_image = argv[3];
-      pictureFilter(argv[2], src_image);
+      if (strcmp(argv[1], "0") == 0){ 
+
+        src_image = argv[3];
+        pictureFilter(argv[2], src_image);
+      
+      } else if (strcmp(argv[1], "1") == 0){
+
+        src_image = argv[3];
+        frameFilter(argv[2],src_image);
+
+      } else if (strcmp(argv[1], "2") == 0){
+        src_image = "";
+        frameFilter(argv[2],src_image);
+      }
+      else{
+
+        std::cout << FRED("[CUDA MANAGER] The argument <0:picture, 1 video, 2:live> is not indicated") << std::endl;
+        return 1;
+      }
+
+    }catch(const std::exception &ex){
+      
+      std::cout << FRED("[MANAGER] There is some problem in the execution") << std::endl;    
+      return EXIT_FAILURE;
     
-    } else if (strcmp(argv[1], "1") == 0){
-
-      src_image = argv[3];
-      frameFilter(argv[2],src_image);
-
-    } else if (strcmp(argv[1], "2") == 0){
-      src_image = "";
-      frameFilter(argv[2],src_image);
-    }
-    else{
-
-      std::cout << FRED("[CUDA MANAGER] The argument <0:picture, 1 video, 2:live> is not indicated") << std::endl;
-      return 1;
     }
     
   return 0;
