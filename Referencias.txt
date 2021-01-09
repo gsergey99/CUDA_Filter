@@ -1,4 +1,3 @@
 https://github.com/LevidRodriguez/Sobel_with_OpenCV-CUDA
-https://github.com/LevidRodriguez/Sobel_with_OpenCV-CUDA/blob/master/sobelFilter.cu
 https://answers.opencv.org/question/1/how-can-i-get-frames-from-my-webcam/?answer=2
 https://answers.opencv.org/question/93379/how-to-calculate-frames-per-second/

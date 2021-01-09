@@ -1,13 +1,13 @@
 # Filtro de Sobel y Sharpen CUDA
 
-Trabajo de filtrado de imágenes, vídeos y frames de WebCam.
+Proyecto final de filtrado de imágenes, vídeos y frames de WebCam de la asignatura de Computadores Avanzados.
 
 Paquetes necesarios:
 
 -   CUDA
 -   OpenCV
 
-Filtros de kernel:
+Filtros aplicados:
 
 -   Sobel
 -   Sharpen
@@ -24,7 +24,7 @@ Para ejecutar el filtro a un video:
 
     make video-sobel o make video-shapen
 
-Para ejecutar el filtro a la Web-Cam:
+Para ejecutar el filtro a la WebCam:
 
     make live-sobel o make live-sharpen
 
