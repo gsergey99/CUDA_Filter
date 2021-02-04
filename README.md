@@ -32,9 +32,17 @@ Para eliminar el archivo ejecutable:
 
     make clean
 
+**Madrid**
 
-En el archivo Makefile, podrá cambiar cada uno de los archivos de entrada, indicando el directorio (img/ o video/) y el nombre del archivo.
+![alt text](img/madrid.jpg)
 
-Autor: Sergio Jiménez del Coso.
+**Madrid Filtro Sobel**
+![alt text](img/madrid_sobel.png)
 
-Correo: Sergio.Jimenezl@alu.uclm.es
+
+
+**¡¡NOTA!!** *En el archivo Makefile, podrá cambiar cada uno de los archivos de entrada, indicando el directorio (img/ o video/) y el nombre del archivo.*
+
+**Autor:** ```Sergio Jiménez del Coso.```
+
+**Correo:** Sergio.Jimenezl@alu.uclm.es
